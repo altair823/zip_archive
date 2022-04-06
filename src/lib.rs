@@ -32,93 +32,18 @@
 //! 1. Download [7-Zip console version executable](https://www.7-zip.org/download.html) for macOS.
 //! 2. Place 7zz executable to home directory. 
 
-use std::path::{Path, PathBuf};
-use std::env::consts::OS;
+use std::path::PathBuf;
 use std::error::Error;
-use std::io;
-use std::io::ErrorKind;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
-use subprocess::Exec;
 use crossbeam_queue::SegQueue;
+use extra::get_dir_list;
+use processes::{process, process_with_sender};
 use std::thread;
-use image_compressor::crawler::get_dir_list;
 
-fn get_7z_executable_path() -> Result<PathBuf, Box<dyn Error>>{
-    match OS {
-        "macos" => Ok(PathBuf::from("./7zz")),
-        "windows" => Ok(PathBuf::from("7z.exe")),
-        "linux" => Ok(PathBuf::from("./7zzs")),
-        e => {
-            println!("Doesn't support {} currently!", e);
-            return Err(Box::new(io::Error::new(ErrorKind::NotFound, "Cannot find the 7z executable!")));
-        }
-    }
-}
-
-fn compress_a_dir_to_7z(origin: &Path, dest: &Path, root: &Path) ->Result<PathBuf, Box<dyn Error>>{
-
-    let compressor_path = get_7z_executable_path()?;
-
-    let mut zip_path = dest.join(&match origin.strip_prefix(root){
-        Ok(p) => p,
-        Err(_) => origin,
-    });
-    zip_path.set_extension("7z");
-
-    if zip_path.is_file(){
-        return Err(Box::new(io::Error::new(ErrorKind::AlreadyExists, "The 7z archive file already exists!")));
-    }
-
-    let exec = Exec::cmd(compressor_path)
-        .args(&vec!["a", "-mx=9", "-t7z", zip_path.to_str().unwrap(), match origin.to_str(){
-            None => return Err(Box::new(io::Error::new(ErrorKind::NotFound, "Cannot get the destination directory path!"))),
-            Some(s) => s,
-        }]);
-    exec.join()?;
-    return Ok(zip_path);
-}
-
-fn process(queue: Arc<SegQueue<PathBuf>>,
-           root: &PathBuf,
-           dest: &PathBuf){
-    while !queue.is_empty() {
-        let dir = match queue.pop() {
-            None => break,
-            Some(d) => d,
-        };
-        match compress_a_dir_to_7z(dir.as_path(), &dest, &root){
-            Ok(_) => {}
-            Err(e) => println!("Error occurred! : {}", e),
-        }
-    }
-}
-
-fn process_with_sender(queue: Arc<SegQueue<PathBuf>>,
-                       root: &PathBuf,
-                       dest: &PathBuf,
-                       sender: Sender<String>){
-    while !queue.is_empty() {
-        let dir = match queue.pop() {
-            None => break,
-            Some(d) => d,
-        };
-        match compress_a_dir_to_7z(dir.as_path(), &dest, &root){
-            Ok(p) => {
-                match sender.send(format!("7z archiving complete: {}", p.to_str().unwrap())){
-                    Ok(_) => {},
-                    Err(e) => println!("Message passing error!: {}", e),
-                }
-            }
-            Err(e) => {
-                match sender.send(format!("7z archiving error occured!: {}", e)) {
-                    Ok(_) => {},
-                    Err(e) => println!("Message passing error!: {}", e),
-                }
-            },
-        };
-    }
-}
+mod core;
+mod extra;
+mod processes;
 
 /// Compress the given directory with multithread. 
 /// 
