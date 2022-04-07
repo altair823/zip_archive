@@ -74,14 +74,12 @@ pub fn archive_root_dir(root: PathBuf,
     }
 
     let mut handles = Vec::new();
-    let arc_root = Arc::new(root);
     let arc_dest = Arc::new(dest);
     for _ in 0..thread_count {
         let arc_queue = Arc::clone(&queue);
-        let arc_root = Arc::clone(&arc_root);
         let arc_dest = Arc::clone(&arc_dest);
         let handle = thread::spawn(move || {
-            process(arc_queue, &arc_root, &arc_dest)
+            process(arc_queue, &arc_dest)
         });
         handles.push(handle);
     }
@@ -135,15 +133,13 @@ pub fn archive_root_dir_with_sender(root: PathBuf,
     }
 
     let mut handles = Vec::new();
-    let arc_root = Arc::new(root);
     let arc_dest = Arc::new(dest);
     for _ in 0..thread_count {
         let arc_queue = Arc::clone(&queue);
-        let arc_root = Arc::clone(&arc_root);
         let arc_dest = Arc::clone(&arc_dest);
         let new_sender = sender.clone();
         let handle = thread::spawn(move || {
-            process_with_sender(arc_queue, &arc_root, &arc_dest, new_sender);
+            process_with_sender(arc_queue, &arc_dest, new_sender);
         });
         handles.push(handle);
     }
@@ -157,4 +153,31 @@ pub fn archive_root_dir_with_sender(root: PathBuf,
         Err(e) => println!("Message passing error!: {}", e),
     }
     Ok(())
+}
+
+
+#[cfg(test)]
+mod tests{
+    use std::sync::mpsc;
+
+    use super::*;
+    use crate::core::test_util::setup;
+
+    #[test]
+    fn archive_root_dir_test(){
+        let (origin, dest) = setup();
+        archive_root_dir(origin, dest, 4).unwrap();
+    }
+
+    #[test]
+    fn archive_root_dir_with_sender_test(){
+        let (origin, dest) = setup();
+
+        let (tx, tr) = mpsc::channel();
+        archive_root_dir_with_sender(origin, dest, 4, tx).unwrap();
+
+        for re in tr {
+            println!("{}", re);
+        }
+    }
 }

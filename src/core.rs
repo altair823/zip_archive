@@ -30,7 +30,7 @@ pub fn compress_a_dir_to_7z(origin: &Path, dest: &Path) -> Result<PathBuf, Box<d
         "-mx=9",
         "-t7z",
         zip_path.to_str().unwrap(),
-        match origin.to_str() {
+        match PathBuf::from("./").join(origin).to_str() {
             None => {
                 return Err(Box::new(io::Error::new(
                     ErrorKind::NotFound,
@@ -44,15 +44,15 @@ pub fn compress_a_dir_to_7z(origin: &Path, dest: &Path) -> Result<PathBuf, Box<d
     return Ok(zip_path);
 }
 
-
 #[cfg(test)]
-mod test{
+pub mod test_util {
     use super::*;
     use std::fs;
     use fs_extra::dir;
     use fs_extra::dir::CopyOptions;
+    use crate::extra::get_dir_list;
 
-    fn setup() -> (PathBuf, PathBuf){
+    pub fn setup() -> (PathBuf, PathBuf){
         let mut i = 1;
         let mut test_origin = PathBuf::from(format!("test_origin{}", i));
         while test_origin.is_dir() {
@@ -64,16 +64,26 @@ mod test{
         fs::create_dir_all(&test_origin).unwrap();
         fs::create_dir_all(&test_dest).unwrap();
 
+        let dir_list = get_dir_list("original_images").unwrap();
         let option = CopyOptions::new();
-        dir::copy("original_images", &test_origin, &option).unwrap();
+        for i in dir_list{
+            dir::copy(i, &test_origin, &option).unwrap();
+        }
 
         (test_origin, test_dest)
     }
+}
+
+#[cfg(test)]
+mod test{
+    use super::*;
+    use test_util::setup;
 
     #[test]
     fn compress_a_dir_to_7z_test(){
-        let (origin, dest) = setup();
-        compress_a_dir_to_7z(origin.join("original_images").as_path(), dest.as_path()).unwrap();
-        assert!(dest.join("original_images.7z").is_file());
+        let (mut origin, dest) = setup();
+        compress_a_dir_to_7z(origin.as_path(), dest.as_path()).unwrap();
+        origin.set_extension("7z");
+        assert!(dest.join(origin).is_file());
     }
 }

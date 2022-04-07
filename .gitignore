@@ -1,6 +1,8 @@
-/original_images/
+#/original_images/
 /target/
 /test*/
+/arc/
+
 Cargo.lock
 .DS_Store
 7zz

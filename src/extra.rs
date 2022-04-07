@@ -4,6 +4,14 @@ use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::Sender;
+
+pub fn send_message(sender: &Sender<String>, message: &str){
+    match sender.send(String::from(message)){
+        Ok(_) => (),
+        Err(e) => println!("Message passing error!: {}", e),
+    }
+}
 
 /// Get all directories list in the rood directory. Not recursive.
 pub fn get_dir_list<O: AsRef<Path>>(root: O) -> io::Result<Vec<PathBuf>> {
@@ -34,5 +42,18 @@ pub fn get_7z_executable_path() -> Result<PathBuf, Box<dyn Error>> {
                 "Cannot find the 7z executable!",
             )));
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests{
+
+    use super::*;
+
+    #[test]
+    fn get_7z_executable_path_test(){
+        // The test will be passed if there is a 7z executable file in the root directory of the current project.
+        assert!(get_7z_executable_path().unwrap().is_file());
     }
 }

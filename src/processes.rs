@@ -5,9 +5,13 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use crate::core::compress_a_dir_to_7z;
+use crate::extra::send_message;
 
 
-pub fn process(queue: Arc<SegQueue<PathBuf>>, root: &PathBuf, dest: &PathBuf) {
+pub fn process(
+    queue: Arc<SegQueue<PathBuf>>, 
+    dest: &PathBuf
+) {
     while !queue.is_empty() {
         let dir = match queue.pop() {
             None => break,
@@ -22,7 +26,6 @@ pub fn process(queue: Arc<SegQueue<PathBuf>>, root: &PathBuf, dest: &PathBuf) {
 
 pub fn process_with_sender(
     queue: Arc<SegQueue<PathBuf>>,
-    root: &PathBuf,
     dest: &PathBuf,
     sender: Sender<String>,
 ) {
@@ -32,14 +35,50 @@ pub fn process_with_sender(
             Some(d) => d,
         };
         match compress_a_dir_to_7z(dir.as_path(), &dest) {
-            Ok(p) => match sender.send(format!("7z archiving complete: {}", p.to_str().unwrap())) {
-                Ok(_) => {}
-                Err(e) => println!("Message passing error!: {}", e),
-            },
-            Err(e) => match sender.send(format!("7z archiving error occured!: {}", e)) {
-                Ok(_) => {}
-                Err(e) => println!("Message passing error!: {}", e),
-            },
+            Ok(p) => send_message(&sender, &format!("7z archiving complete: {}", p.to_str().unwrap())),
+            Err(e) => send_message(&sender, &format!("7z archiving error occured!: {}", e)),
         };
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crossbeam_queue::SegQueue;
+    use std::thread;
+    use std::sync::mpsc;
+    use crate::extra::get_dir_list;
+    use crate::core::test_util::setup;
+
+    #[test]
+    fn process_test(){
+        let (origin, dest) = setup();
+        let raw_vec = get_dir_list(origin).unwrap();
+        let queue = SegQueue::new();
+        for i in raw_vec{
+            queue.push(i);
+        }
+        process(Arc::new(queue), &dest)
+    }
+
+    #[test]
+    fn process_with_sender_test(){
+        let (origin, dest) = setup();
+        let raw_vec = get_dir_list(origin).unwrap();
+        let queue = SegQueue::new();
+        for i in raw_vec{
+            queue.push(i);
+        } 
+        let (tx, tr) = mpsc::channel();
+        
+        thread::spawn(move ||{
+            process_with_sender(Arc::new(queue), &dest, tx);
+        });
+        
+        for re in tr {
+            println!("{}", re);
+        }
     }
 }
