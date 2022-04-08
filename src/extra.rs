@@ -1,4 +1,3 @@
-
 use std::env::consts::OS;
 use std::error::Error;
 use std::io;
@@ -6,10 +5,17 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 
-pub fn send_message(sender: &Sender<String>, message: &str){
-    match sender.send(String::from(message)){
+pub fn send_message(sender: &Sender<String>, message: &str) {
+    match sender.send(String::from(message)) {
         Ok(_) => (),
         Err(e) => println!("Message passing error!: {}", e),
+    }
+}
+
+pub fn try_send_message(sender: &Option<Sender<String>>, message: &str){
+    match sender{
+        Some(s) => send_message(s, message),
+        None => (),
     }
 }
 
@@ -29,7 +35,6 @@ pub fn get_dir_list<O: AsRef<Path>>(root: O) -> io::Result<Vec<PathBuf>> {
     Ok(dir_list)
 }
 
-
 pub fn get_7z_executable_path() -> Result<PathBuf, Box<dyn Error>> {
     match OS {
         "macos" => Ok(PathBuf::from("./7zz")),
@@ -45,14 +50,13 @@ pub fn get_7z_executable_path() -> Result<PathBuf, Box<dyn Error>> {
     }
 }
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
 
     use super::*;
 
     #[test]
-    fn get_7z_executable_path_test(){
+    fn get_7z_executable_path_test() {
         // The test will be passed if there is a 7z executable file in the root directory of the current project.
         assert!(get_7z_executable_path().unwrap().is_file());
     }
