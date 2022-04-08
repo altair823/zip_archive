@@ -28,9 +28,9 @@ pub fn process_with_sender(queue: Arc<SegQueue<PathBuf>>, dest: &PathBuf, sender
         match compress_a_dir_to_7z(dir.as_path(), &dest) {
             Ok(p) => send_message(
                 &sender,
-                &format!("7z archiving complete: {}", p.to_str().unwrap()),
+                format!("7z archiving complete: {}", p.to_str().unwrap()),
             ),
-            Err(e) => send_message(&sender, &format!("7z archiving error occured!: {}", e)),
+            Err(e) => send_message(&sender, format!("7z archiving error occured!: {}", e)),
         };
     }
 }

@@ -5,14 +5,14 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 
-pub fn send_message(sender: &Sender<String>, message: &str) {
-    match sender.send(String::from(message)) {
+pub fn send_message<T: ToString>(sender: &Sender<T>, message: T){
+    match sender.send(message) {
         Ok(_) => (),
         Err(e) => println!("Message passing error!: {}", e),
     }
 }
 
-pub fn try_send_message(sender: &Option<Sender<String>>, message: &str){
+pub fn try_send_message<T: ToString>(sender: &Option<Sender<T>>, message: T){
     match sender{
         Some(s) => send_message(s, message),
         None => (),

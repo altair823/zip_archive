@@ -7,13 +7,17 @@
 //!
 //! ```
 //! use std::path::PathBuf;
-//! use zip_archive::archive_root_dir;
+//! use zip_archive::Archiver;
 //!
 //! let origin = PathBuf::from("./origin");
 //! let dest = PathBuf::from("./dest");
 //! let thread_count = 4;
 //!
-//! match archive_root_dir(origin, dest, thread_count){
+//! let mut archiver = Archiver::new();
+//! archiver.set_origin(origin);
+//! archiver.set_destination(dest);
+//! archiver.set_thread_count(thread_count);
+//! match archiver.archive(){
 //!     Ok(_) => (),
 //!     Err(e) => println!("Cannot archive the directory! {}", e),
 //! };
@@ -36,6 +40,7 @@ use crossbeam_queue::SegQueue;
 use extra::{get_dir_list, try_send_message};
 use processes::{process, process_with_sender};
 use std::error::Error;
+use std::path::Path;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
@@ -45,17 +50,17 @@ mod core;
 mod extra;
 mod processes;
 
-pub struct Compressor {
+pub struct Archiver {
     dest: Option<PathBuf>,
     thread_count: u32,
     sender: Option<Sender<String>>,
     queue: Option<SegQueue<PathBuf>>,
 }
 
-impl Compressor {
+impl Archiver {
 
     pub fn new() -> Self{
-        Compressor { 
+        Archiver { 
             dest: None, 
             thread_count: 1, 
             sender: None, 
@@ -63,8 +68,8 @@ impl Compressor {
         }
     }
 
-    pub fn set_origin(&mut self, origin: PathBuf){
-        let dir_vec = get_dir_list(origin).unwrap();
+    pub fn make_queue_from_root(&mut self, root: PathBuf){
+        let dir_vec = get_dir_list(root).unwrap();
         let queue = SegQueue::new();
         for dir in dir_vec{
             queue.push(dir);
@@ -84,53 +89,68 @@ impl Compressor {
         self.sender = Some(sender);
     }
 
-    pub fn add_queue(&mut self, queue: SegQueue<PathBuf>){
-        match &self.queue {
-            None => self.queue = Some(queue),
-            Some(q) => {
-                while !queue.is_empty() {
-                    q.push(queue.pop().unwrap());
-                }
-            }
+    pub fn set_queue<I>(&mut self, queue: I)
+    where 
+        I: IntoIterator,
+        I::Item: AsRef<Path>,
+        {
+        if let None = self.queue{
+            self.queue = Some(SegQueue::new());
+        }
+        for i in queue{
+            self.queue.as_ref().unwrap().push(i.as_ref().to_path_buf());
         }
     }
 
+    pub fn push<T: AsRef<Path>>(&mut self, path: T){
+        if let None = self.queue {
+            self.queue = Some(SegQueue::new());
+        }
+        self.queue.as_ref().unwrap().push(path.as_ref().to_path_buf());
+    }
+
+    
     /// Compress the given directory with multithread.
     ///
     /// # Examples
     ///
     /// ```
     /// use std::path::PathBuf;
-    /// use zip_archive::archive_root_dir;
+    /// use zip_archive::Archiver;
     ///
     /// let origin = PathBuf::from("./origin");
     /// let dest = PathBuf::from("./dest");
     /// let thread_count = 4;
     ///
-    /// match archive_root_dir(origin, dest, thread_count){
+    /// let mut archiver = Archiver::new();
+    /// archiver.set_origin(origin);
+    /// archiver.set_destination(dest);
+    /// archiver.set_thread_count(thread_count);
+    /// 
+    /// match archiver.archive(){
     ///     Ok(_) => (),
     ///     Err(e) => println!("Cannot archive the directory! {}", e),
     /// };
     /// ```
     ///
-    pub fn archive_root_dir(&self) -> Result<(), Box<dyn Error>> {
+    pub fn archive(&self) -> Result<(), Box<dyn Error>> {
 
 
         match &self.queue {
             Some(q) => {
                 try_send_message(&self.sender, 
-                    &format!(
+                    format!(
                     "Total archive directory count: {}",
                     q.len()
                 ));
             },
             None => {
-                try_send_message(&self.sender, "There are no files to archive.");
+                try_send_message(&self.sender, "There are no files to archive.".to_string());
                 return Ok(());
             },
         }
         
-        let queue =  Arc::new(Compressor::copy_queue(self.queue.as_ref().unwrap()));
+        let queue =  Arc::new(Archiver::copy_queue(self.queue.as_ref().unwrap()));
         let dest = Arc::new(self.dest.clone().unwrap());
         
         let mut handles = Vec::new();
@@ -157,7 +177,7 @@ impl Compressor {
             h.join().unwrap();
         }
 
-        try_send_message(&self.sender, "Archiving Complete!");
+        try_send_message(&self.sender, "Archiving Complete!".to_string());
 
         Ok(())
     }
@@ -174,7 +194,7 @@ impl Compressor {
 
 
 #[cfg(test)]
-mod tests {
+mod tests{ 
 
     use super::*;
     use std::sync::mpsc;
@@ -184,11 +204,11 @@ mod tests {
     fn archive_root_dir_test() {
         let (origin, dest) = setup();
 
-        let mut compressor = Compressor::new();
-        compressor.set_origin(origin);
-        compressor.set_destination(dest);
+        let mut archiver = Archiver::new();
+        archiver.make_queue_from_root(origin);
+        archiver.set_destination(dest);
 
-        compressor.archive_root_dir().unwrap();
+        archiver.archive().unwrap();
     }
 
     #[test]
@@ -196,11 +216,11 @@ mod tests {
         let (origin, dest) = setup();
 
         let (tx, tr) = mpsc::channel();
-        let mut compressor = Compressor::new();
-        compressor.set_origin(origin);
-        compressor.set_destination(dest);
-        compressor.set_sender(tx);
-        compressor.archive_root_dir().unwrap();
+        let mut archiver = Archiver::new();
+        archiver.make_queue_from_root(origin);
+        archiver.set_destination(dest);
+        archiver.set_sender(tx);
+        archiver.archive().unwrap();
         for re in tr {
             println!("{}", re);
             if re == String::from("Archiving Complete!"){
@@ -216,9 +236,44 @@ mod tests {
         queue1.push("value2");
         queue1.push("value3");
         queue1.push("value4");
-        let queue2 = Compressor::copy_queue(&queue1);
+        let queue2 = Archiver::copy_queue(&queue1);
         while !queue2.is_empty() {
             println!("{}", queue2.pop().unwrap());
         }
+    }
+
+    #[test]
+    fn add_queue_test(){
+        let (origin, dest) = setup();
+        let queue = SegQueue::new();
+        for dir in origin.read_dir().unwrap(){
+            queue.push(dir.unwrap().path().to_path_buf());
+        }
+
+        let mut archiver = Archiver::new();
+        archiver.set_queue(queue);
+        archiver.set_destination(dest);
+        archiver.archive().unwrap();
+    }
+
+    #[test]
+    fn add_queue_vec_test(){
+        let (origin, dest) = setup();
+        let files = get_dir_list(origin).unwrap();
+        
+        let mut archiver = Archiver::new();
+        archiver.set_queue(files);
+        archiver.set_destination(dest);
+        archiver.archive().unwrap();
+    }
+
+    #[test]
+    fn push_test(){
+        let (origin, dest) = setup(); 
+        let mut archiver = Archiver::new();
+        archiver.push(origin.join("dir1"));
+        archiver.push(origin.join("dir2"));
+        archiver.set_destination(dest);
+        archiver.archive().unwrap();
     }
 }
