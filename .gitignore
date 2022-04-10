@@ -1,7 +1,9 @@
-#/original_images/
+/original_images/
 /target/
-/test*/
 /arc/
+/dest/
+/origin/
+/*test*/
 
 Cargo.lock
 .DS_Store
