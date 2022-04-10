@@ -5,7 +5,7 @@
 //!
 //! # Examples
 //!
-//! Compress root directory with multithread.
+//! - Compress root directory with multithread.
 //! ```
 //! use std::path::PathBuf;
 //! use zip_archive::Archiver;
@@ -25,7 +25,7 @@
 //! };
 //! ```
 //! 
-//! Compress each directory using the container's iterator.
+//! - Compress each directory using the container's iterator.
 //! ```
 //! use std::path::PathBuf;
 //! use zip_archive::Archiver;
@@ -42,7 +42,7 @@
 //! };
 //! ```
 //! 
-//! Compress subdirectories with a depth of 1.
+//! - Compress subdirectories with a depth of 1.
 //! ```
 //! use std::path::PathBuf;
 //! use zip_archive::{Archiver, get_dir_list};
