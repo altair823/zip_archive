@@ -3,7 +3,7 @@ name = "zip_archive"
 description = "A library selecting 7z executable that are depending on the operating system, and run it with multithread."
 author = ["Kim tae hyeon <kimth0734@gmail.com>"]
 license = "MIT"
-version = "0.1.1"
+version = "1.0.0"
 edition = "2021"
 repository = "https://github.com/altair823/zip_archive"
 
