@@ -4,9 +4,9 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use subprocess::Exec;
 
-use crate::extra::get_7z_executable_path;
+use crate::extra::{get_7z_executable_path, get_file_list};
 
-pub fn compress_a_dir_to_7z(origin: &Path, dest: &Path) -> Result<PathBuf, Box<dyn Error>> {
+pub fn compress_7z(origin: &Path, dest: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let compressor_path = get_7z_executable_path()?;
 
     let mut zip_path = dest.join(&match origin.file_name() {
@@ -42,44 +42,15 @@ pub fn compress_a_dir_to_7z(origin: &Path, dest: &Path) -> Result<PathBuf, Box<d
 }
 
 #[cfg(test)]
-pub mod test_util {
-    use super::*;
-    use crate::extra::get_dir_list;
-    use fs_extra::dir;
-    use fs_extra::dir::CopyOptions;
-    use std::fs;
-
-    pub fn setup() -> (PathBuf, PathBuf) {
-        let mut i = 1;
-        let mut test_origin = PathBuf::from(format!("test_origin{}", i));
-        while test_origin.is_dir() {
-            i += 1;
-            test_origin = PathBuf::from(format!("test_origin{}", i));
-        }
-        let test_dest = PathBuf::from(format!("test_dest{}", i));
-
-        fs::create_dir_all(&test_origin).unwrap();
-        fs::create_dir_all(&test_dest).unwrap();
-
-        let dir_list = get_dir_list("original_images").unwrap();
-        let option = CopyOptions::new();
-        for i in dir_list {
-            dir::copy(i, &test_origin, &option).unwrap();
-        }
-
-        (test_origin, test_dest)
-    }
-}
-
-#[cfg(test)]
 mod test {
+    use crate::core::test_util::setup;
+
     use super::*;
-    use test_util::setup;
 
     #[test]
-    fn compress_a_dir_to_7z_test() {
+    fn compress_to_7z_test() {
         let (mut origin, dest) = setup();
-        compress_a_dir_to_7z(origin.as_path(), dest.as_path()).unwrap();
+        compress_7z(origin.as_path(), dest.as_path()).unwrap();
         origin.set_extension("7z");
         assert!(dest.join(origin).is_file());
     }
