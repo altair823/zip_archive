@@ -23,6 +23,15 @@ impl Clone for Format {
     }
 }
 
+impl ToString for Format {
+    fn to_string(&self) -> String {
+        match self {
+            Format::C7z => String::from("7z"),
+            Format::Cxz => String::from("xz"),
+        }
+    }
+}
+
 pub fn get_compressor(
     comp_t: Format,
 ) -> fn(queue: Arc<SegQueue<PathBuf>>, dest: &PathBuf, sender: Option<Sender<String>>) {
