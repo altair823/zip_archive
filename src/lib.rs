@@ -165,12 +165,7 @@ impl Archiver {
     }
 
     pub fn set_format_str<T: ToString>(&mut self, comp_format_str: T) {
-        let comp_format_str = comp_format_str.to_string();
-        match comp_format_str.to_lowercase().as_str() {
-            "7z" => self.format = Format::C7z,
-            "xz" => self.format = Format::Cxz,
-            _ => (),
-        }
+        self.format = Format::from(&comp_format_str.to_string());
     }
 
     /// Push all elements in givin iterator to the queue.

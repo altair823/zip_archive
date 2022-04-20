@@ -14,11 +14,28 @@ pub enum Format {
     // Czip,
 }
 
+impl Format {
+    pub fn extension(&self) -> String {
+        match self {
+            Self::C7z => String::from(".7z"),
+            Self::Cxz => String::from(".tar.xz"),
+        } 
+    }
+    
+    pub fn from(format_str: &str) -> Self{
+        match format_str{
+            "7z" => Format::C7z,
+            "xz" => Format::Cxz,
+            _ => panic!("wrong format string!"),
+        }
+    }
+}
+
 impl Clone for Format {
     fn clone(&self) -> Self {
         match self {
-            Self::C7z => Self::C7z,
-            Self::Cxz => Self::Cxz,
+            Self::C7z => Format::C7z,
+            Self::Cxz => Format::Cxz,
         }
     }
 }
