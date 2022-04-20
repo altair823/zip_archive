@@ -20,7 +20,7 @@ pub fn process(queue: Arc<SegQueue<PathBuf>>, dest: &PathBuf, sender: Option<Sen
         let tar_path = match make_tar(&dir, &dest) {
             Ok(p) => p,
             Err(e) => {
-                try_send_message(&sender, format!("Cannot create tarball!"));
+                try_send_message(&sender, format!("Cannot create tarball!: {}", e));
                 return;
             }
         };
@@ -44,13 +44,19 @@ pub fn process(queue: Arc<SegQueue<PathBuf>>, dest: &PathBuf, sender: Option<Sen
 mod tests {
     use std::{sync::mpsc, thread};
 
-    use crate::{core::test_util::setup, get_dir_list};
+    use function_name::named;
+
+    use crate::{
+        core::test_util::{cleanup, setup, Dir},
+        get_dir_list,
+    };
 
     use super::*;
 
     #[test]
+    #[named]
     fn process_xz_test() {
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
         let raw_vec = get_dir_list(origin).unwrap();
         let queue = SegQueue::new();
         for i in raw_vec {
@@ -62,8 +68,21 @@ mod tests {
             process(Arc::new(queue), &dest, Some(tx));
         });
 
+        let mut message = vec![];
         for re in tr {
-            println!("{}", re);
+            message.push(re);
         }
+        println!("{:?}", message);
+        let mut expected_message = vec![
+            "xz archiving complete: test_dest_process_xz_test/dir2.tar.xz",
+            "xz archiving complete: test_dest_process_xz_test/dir3.tar.xz",
+            "xz archiving complete: test_dest_process_xz_test/dir1.tar.xz",
+        ];
+
+        message.sort();
+        expected_message.sort();
+
+        assert_eq!(message, expected_message);
+        cleanup(function_name!());
     }
 }

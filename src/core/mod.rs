@@ -11,14 +11,21 @@ pub mod test_util {
     use std::fs;
     use std::path::PathBuf;
 
-    pub fn setup() -> (PathBuf, PathBuf) {
-        let mut i = 1;
-        let mut test_origin = PathBuf::from(format!("test_origin{}", i));
-        while test_origin.is_dir() {
-            i += 1;
-            test_origin = PathBuf::from(format!("test_origin{}", i));
+    pub struct Dir {
+        pub origin: PathBuf,
+        pub dest: PathBuf,
+    }
+
+    pub fn setup(test_name: &str) -> Dir {
+        let test_origin = PathBuf::from(format!("test_origin_{}", test_name));
+        let test_dest = PathBuf::from(format!("test_dest_{}", test_name));
+
+        if test_origin.is_dir() {
+            fs::remove_dir_all(&test_origin).unwrap();
         }
-        let test_dest = PathBuf::from(format!("test_dest{}", i));
+        if test_dest.is_dir() {
+            fs::remove_dir_all(&test_dest).unwrap();
+        }
 
         fs::create_dir_all(&test_origin).unwrap();
         fs::create_dir_all(&test_dest).unwrap();
@@ -29,6 +36,21 @@ pub mod test_util {
             dir::copy(i, &test_origin, &option).unwrap();
         }
 
-        (test_origin, test_dest)
+        Dir {
+            origin: test_origin,
+            dest: test_dest,
+        }
+    }
+
+    pub fn cleanup(test_name: &str) {
+        let test_origin = PathBuf::from(format!("test_origin_{}", test_name));
+        let test_dest = PathBuf::from(format!("test_dest_{}", test_name));
+
+        if test_origin.is_dir() {
+            fs::remove_dir_all(&test_origin).unwrap();
+        }
+        if test_dest.is_dir() {
+            fs::remove_dir_all(&test_dest).unwrap();
+        }
     }
 }

@@ -26,15 +26,17 @@ pub fn process(queue: Arc<SegQueue<PathBuf>>, dest: &PathBuf, sender: Option<Sen
 mod tests {
 
     use super::*;
-    use crate::core::test_util::setup;
+    use crate::core::test_util::{cleanup, setup, Dir};
     use crate::extra::get_dir_list;
     use crossbeam_queue::SegQueue;
+    use function_name::named;
     use std::sync::mpsc;
     use std::thread;
 
     #[test]
+    #[named]
     fn process_7z_test() {
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
         let raw_vec = get_dir_list(origin).unwrap();
         let queue = SegQueue::new();
         for i in raw_vec {
@@ -46,8 +48,21 @@ mod tests {
             process(Arc::new(queue), &dest, Some(tx));
         });
 
+        let mut message = vec![];
         for re in tr {
-            println!("{}", re);
+            message.push(re);
         }
+
+        let mut expected_message = vec![
+            "7z archiving complete: test_dest_process_7z_test/dir2.7z",
+            "7z archiving complete: test_dest_process_7z_test/dir3.7z",
+            "7z archiving complete: test_dest_process_7z_test/dir1.7z",
+        ];
+
+        message.sort();
+        expected_message.sort();
+
+        assert_eq!(message, expected_message);
+        cleanup(function_name!());
     }
 }

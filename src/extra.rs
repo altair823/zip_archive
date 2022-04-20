@@ -90,33 +90,6 @@ pub fn get_dir_list_with_depth<O: AsRef<Path>>(root: O, depth: u32) -> io::Resul
     return Ok(result);
 }
 
-/// Find all files in the root directory in a recursive way.
-/// The hidden files started with `.` will be not inclused in result.
-pub fn get_file_list<O: AsRef<Path>>(root: O) -> io::Result<Vec<PathBuf>> {
-    let mut file_list: Vec<PathBuf> = Vec::new();
-    let mut file_queue: Vec<PathBuf> = root
-        .as_ref()
-        .read_dir()?
-        .map(|entry| entry.unwrap().path())
-        .collect();
-    let mut i = 0;
-    loop {
-        if i >= file_queue.len() {
-            break;
-        }
-        if file_queue[i].is_dir() {
-            for component in file_queue[i].read_dir()? {
-                file_queue.push(component.unwrap().path());
-            }
-        } else if &file_queue[i].file_name().unwrap().to_str().unwrap()[..1] != "." {
-            file_list.push(file_queue[i].to_path_buf());
-        }
-        i += 1;
-    }
-
-    Ok(file_list)
-}
-
 pub fn get_7z_executable_path() -> Result<PathBuf, Box<dyn Error>> {
     match OS {
         "macos" => Ok(PathBuf::from("./7zz")),
@@ -135,6 +108,8 @@ pub fn get_7z_executable_path() -> Result<PathBuf, Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
 
+    use std::fs;
+
     use super::*;
 
     #[test]
@@ -145,6 +120,26 @@ mod tests {
 
     #[test]
     fn get_dir_list_with_depth_test() {
-        println!("{:?}", get_dir_list_with_depth("dir_test", 4).unwrap());
+        fs::create_dir_all("dir_test/dir1/dir2/dir3").unwrap();
+
+        assert_eq!(
+            vec![PathBuf::from("dir_test")],
+            get_dir_list_with_depth("dir_test", 0).unwrap()
+        );
+        assert_eq!(
+            vec![PathBuf::from("dir_test/dir1")],
+            get_dir_list_with_depth("dir_test", 1).unwrap()
+        );
+        assert_eq!(
+            vec![PathBuf::from("dir_test/dir1/dir2")],
+            get_dir_list_with_depth("dir_test", 2).unwrap()
+        );
+        assert_eq!(
+            vec![PathBuf::from("dir_test/dir1/dir2/dir3")],
+            get_dir_list_with_depth("dir_test", 3).unwrap()
+        );
+        assert!(get_dir_list_with_depth("dir_test", 4).unwrap().is_empty());
+
+        fs::remove_dir_all("dir_test").unwrap();
     }
 }

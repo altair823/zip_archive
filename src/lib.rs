@@ -53,13 +53,13 @@
 //! - Compress subdirectories with a depth of 1.
 //! ```
 //! use std::path::PathBuf;
-//! use zip_archive::{Archiver, get_dir_list_with_depth};
+//! use zip_archive::{Archiver, get_dir_list};
 //!
 //! let origin = PathBuf::from("./origin");  // Change to the wanted directory.
 //! let dest = PathBuf::from("./dest");
 //!
 //! let mut archiver = Archiver::new();
-//! archiver.push_from_iter(get_dir_list_with_depth(origin, 1).unwrap().iter());
+//! archiver.push_from_iter(get_dir_list(origin).unwrap().iter());
 //! archiver.set_destination(dest);
 //! match archiver.archive(){
 //!     Ok(_) => (),
@@ -331,37 +331,65 @@ impl Archiver {
 #[cfg(test)]
 mod tests {
 
-    use crate::core::test_util::setup;
+    use function_name::named;
+
+    use crate::core::test_util::{cleanup, setup, Dir};
 
     use super::*;
     use std::sync::mpsc;
 
     #[test]
+    #[named]
     fn archive_root_dir_test() {
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
 
         let mut archiver = Archiver::new();
         archiver.push_from_iter(get_dir_list(origin).unwrap().iter());
-        archiver.set_destination(dest);
+        archiver.set_destination(&dest);
 
         archiver.archive().unwrap();
+
+        assert!(dest.join("dir1.tar.xz").is_file());
+        assert!(dest.join("dir2.tar.xz").is_file());
+        assert!(dest.join("dir3.tar.xz").is_file());
+
+        cleanup(function_name!());
     }
 
     #[test]
+    #[named]
     fn archive_root_dir_with_sender_test() {
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
 
         let (tx, tr) = mpsc::channel();
         {
             let mut archiver = Archiver::new();
             archiver.push_from_iter(get_dir_list(origin).unwrap().iter());
-            archiver.set_destination(dest);
+            archiver.set_destination(&dest);
             archiver.set_sender(tx);
             archiver.archive().unwrap();
         }
+        let mut messages = vec![];
         for re in tr {
-            println!("{}", re);
+            messages.push(re);
         }
+        let mut expected_messages = vec![
+            "Total archive directory count: 3",
+            "xz archiving complete: test_dest_archive_root_dir_with_sender_test/dir2.tar.xz",
+            "xz archiving complete: test_dest_archive_root_dir_with_sender_test/dir3.tar.xz",
+            "xz archiving complete: test_dest_archive_root_dir_with_sender_test/dir1.tar.xz",
+            "Archiving Complete!",
+        ];
+
+        messages.sort();
+        expected_messages.sort();
+
+        assert_eq!(expected_messages, messages);
+        assert!(dest.join("dir1.tar.xz").is_file());
+        assert!(dest.join("dir2.tar.xz").is_file());
+        assert!(dest.join("dir3.tar.xz").is_file());
+
+        cleanup(function_name!());
     }
 
     #[test]
@@ -372,14 +400,23 @@ mod tests {
         queue1.push("value3");
         queue1.push("value4");
         let queue2 = Archiver::copy_queue(&queue1);
+
+        let mut queue_vec = Vec::new();
         while !queue2.is_empty() {
-            println!("{}", queue2.pop().unwrap());
+            queue_vec.push(queue2.pop().unwrap());
         }
+        let mut expected_vec = vec!["value1", "value2", "value3", "value4"];
+
+        queue_vec.sort();
+        expected_vec.sort();
+
+        assert_eq!(expected_vec, queue_vec);
     }
 
     #[test]
+    #[named]
     fn add_queue_test() {
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
         let queue = SegQueue::new();
         for dir in origin.read_dir().unwrap() {
             queue.push(dir.unwrap().path().to_path_buf());
@@ -388,21 +425,23 @@ mod tests {
         archiver.push_from_iter(queue.into_iter());
         archiver.set_destination(dest.to_path_buf());
         archiver.archive().unwrap();
-        assert!(dest.join("dir1.7z").is_file());
-        assert!(dest.join("dir2.7z").is_file());
-        assert!(dest.join("dir3.7z").is_file());
+        assert!(dest.join("dir1.tar.xz").is_file());
+        assert!(dest.join("dir2.tar.xz").is_file());
+        assert!(dest.join("dir3.tar.xz").is_file());
+        cleanup(function_name!());
 
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
         let files = get_dir_list(origin).unwrap();
         let mut archiver = Archiver::new();
         archiver.push_from_iter(files.iter());
         archiver.set_destination(dest.to_path_buf());
         archiver.archive().unwrap();
-        assert!(dest.join("dir1.7z").is_file());
-        assert!(dest.join("dir2.7z").is_file());
-        assert!(dest.join("dir3.7z").is_file());
+        assert!(dest.join("dir1.tar.xz").is_file());
+        assert!(dest.join("dir2.tar.xz").is_file());
+        assert!(dest.join("dir3.tar.xz").is_file());
+        cleanup(function_name!());
 
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
         let mut archiver = Archiver::new();
         archiver.push_from_iter(
             vec![
@@ -414,32 +453,48 @@ mod tests {
         );
         archiver.set_destination(dest.to_path_buf());
         archiver.archive().unwrap();
-        assert!(dest.join("dir1.7z").is_file());
-        assert!(dest.join("dir2.7z").is_file());
-        assert!(dest.join("dir3.7z").is_file());
+        assert!(dest.join("dir1.tar.xz").is_file());
+        assert!(dest.join("dir2.tar.xz").is_file());
+        assert!(dest.join("dir3.tar.xz").is_file());
+        cleanup(function_name!());
     }
 
     #[test]
+    #[named]
     fn push_test() {
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
         let mut archiver = Archiver::new();
         archiver.push(origin.join("dir1"));
         archiver.push(origin.join("dir2"));
-        archiver.set_destination(dest);
+        archiver.set_destination(&dest);
         archiver.archive().unwrap();
+
+        assert!(dest.join("dir1.tar.xz").is_file());
+        assert!(dest.join("dir2.tar.xz").is_file());
+        cleanup(function_name!());
     }
 
     #[test]
+    #[named]
     fn format_test() {
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
         let mut archiver = Archiver::new();
         archiver.push_from_iter(get_dir_list(&origin).unwrap().iter());
-        archiver.set_destination(dest);
+        archiver.set_destination(&dest);
         archiver.set_format(Format::Cxz);
         archiver.archive().unwrap();
+
+        assert!(dest.join("dir1.tar.xz").is_file());
+        assert!(dest.join("dir2.tar.xz").is_file());
+        assert!(dest.join("dir3.tar.xz").is_file());
 
         archiver.push_from_iter(get_dir_list(&origin).unwrap().iter());
         archiver.set_format_str("7z");
         archiver.archive().unwrap();
+
+        assert!(dest.join("dir1.7z").is_file());
+        assert!(dest.join("dir2.7z").is_file());
+        assert!(dest.join("dir3.7z").is_file());
+        cleanup(function_name!());
     }
 }

@@ -31,14 +31,18 @@ pub fn make_tar(origin: &Path, dest: &Path) -> Result<PathBuf, Box<dyn Error>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::test_util::setup;
+    use function_name::named;
+
+    use crate::core::test_util::{cleanup, setup, Dir};
 
     use super::*;
     #[test]
+    #[named]
     fn make_tar_test() {
-        let (mut origin, dest) = setup();
+        let Dir { mut origin, dest } = setup(function_name!());
         make_tar(origin.as_path(), dest.as_path()).unwrap();
         origin.set_extension("tar");
         assert!(dest.join(origin).is_file());
+        cleanup(function_name!());
     }
 }

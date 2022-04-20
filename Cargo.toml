@@ -17,3 +17,4 @@ tar = "0.4.38"
 
 [dev-dependencies]
 fs_extra = "1.2.0"
+function_name = "0.2.0"

@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use subprocess::Exec;
 
-use crate::extra::{get_7z_executable_path, get_file_list};
+use crate::extra::get_7z_executable_path;
 
 pub fn compress_7z(origin: &Path, dest: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let compressor_path = get_7z_executable_path()?;
@@ -43,15 +43,19 @@ pub fn compress_7z(origin: &Path, dest: &Path) -> Result<PathBuf, Box<dyn Error>
 
 #[cfg(test)]
 mod test {
-    use crate::core::test_util::setup;
+    use function_name::named;
+
+    use crate::core::test_util::{cleanup, setup, Dir};
 
     use super::*;
 
     #[test]
+    #[named]
     fn compress_to_7z_test() {
-        let (mut origin, dest) = setup();
+        let Dir { mut origin, dest } = setup(function_name!());
         compress_7z(origin.as_path(), dest.as_path()).unwrap();
         origin.set_extension("7z");
         assert!(dest.join(origin).is_file());
+        cleanup(function_name!());
     }
 }

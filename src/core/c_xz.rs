@@ -42,14 +42,21 @@ pub fn compress_xz<T: AsRef<Path>, O: AsRef<Path>>(
 
 #[cfg(test)]
 mod tests {
+    use function_name::named;
+
     use super::super::c_tar::make_tar;
     use super::*;
-    use crate::core::test_util::setup;
+    use crate::core::test_util::{cleanup, setup, Dir};
 
     #[test]
+    #[named]
     fn compress_xz_test() {
-        let (origin, dest) = setup();
+        let Dir { origin, dest } = setup(function_name!());
         let tar_path = make_tar(&origin, &dest).unwrap();
-        compress_xz(tar_path, dest).unwrap();
+        compress_xz(&tar_path, dest).unwrap();
+
+        assert!(tar_path.is_file());
+        assert!(Path::new(&format!("{}.xz", &tar_path.to_str().unwrap())).is_file());
+        cleanup(function_name!());
     }
 }
