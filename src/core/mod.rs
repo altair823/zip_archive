@@ -1,6 +1,16 @@
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
+
 pub mod c_7z;
 pub mod c_tar;
 pub mod c_xz;
+pub mod c_zip;
+
+pub trait Compress {
+    fn compress<T: AsRef<Path>, O: AsRef<Path>>(origin: T, dest: O) -> Result<PathBuf, io::Error>;
+}
 
 #[cfg(test)]
 pub mod test_util {

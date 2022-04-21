@@ -1,20 +1,17 @@
-use crossbeam_queue::SegQueue;
-use std::sync::mpsc::Sender;
-use std::sync::Arc;
-
-use crate::core::c_7z::Compress7z;
-use crate::core::Compress;
-use crate::extra::try_send_message;
+use crate::{
+    core::{c_zip::CompressZip, Compress},
+    extra::try_send_message,
+};
 
 use super::Process;
 
-pub struct Process7z;
+pub struct ProcessZip;
 
-impl Process for Process7z {
+impl Process for ProcessZip {
     fn process<T: AsRef<std::path::Path>, O: AsRef<std::path::Path>>(
-        queue: Arc<SegQueue<T>>,
-        dest: Arc<O>,
-        sender: Option<Sender<String>>,
+        queue: std::sync::Arc<crossbeam_queue::SegQueue<T>>,
+        dest: std::sync::Arc<O>,
+        sender: Option<std::sync::mpsc::Sender<String>>,
     ) {
         let dest = &*dest;
         while !queue.is_empty() {
@@ -22,13 +19,14 @@ impl Process for Process7z {
                 None => break,
                 Some(d) => d,
             };
-            match Compress7z::compress(&dir, &dest) {
+
+            match CompressZip::compress(dir, dest) {
                 Ok(p) => try_send_message(
                     &sender,
-                    format!("7z archiving complete: {}", p.to_str().unwrap()),
+                    format!("zip archiving complete: {}", p.to_str().unwrap()),
                 ),
-                Err(e) => try_send_message(&sender, format!("7z archiving error occured!: {}", e)),
-            };
+                Err(e) => try_send_message(&sender, format!("zip archiving error occured!: {}", e)),
+            }
         }
     }
 }
@@ -41,12 +39,12 @@ mod tests {
     use crate::extra::get_dir_list;
     use crossbeam_queue::SegQueue;
     use function_name::named;
-    use std::sync::mpsc;
+    use std::sync::{mpsc, Arc};
     use std::thread;
 
     #[test]
     #[named]
-    fn process_7z_test() {
+    fn process_zip_test() {
         let Dir { origin, dest } = setup(function_name!());
         let raw_vec = get_dir_list(origin).unwrap();
         let queue = SegQueue::new();
@@ -57,7 +55,7 @@ mod tests {
 
         let dest = Arc::new(dest);
         thread::spawn(move || {
-            Process7z::process(Arc::new(queue), dest, Some(tx));
+            ProcessZip::process(Arc::new(queue), dest, Some(tx));
         });
 
         let mut message = vec![];
@@ -66,9 +64,9 @@ mod tests {
         }
 
         let mut expected_message = vec![
-            "7z archiving complete: test_dest_process_7z_test/dir2.7z",
-            "7z archiving complete: test_dest_process_7z_test/dir3.7z",
-            "7z archiving complete: test_dest_process_7z_test/dir1.7z",
+            "zip archiving complete: test_dest_process_zip_test/dir1.zip",
+            "zip archiving complete: test_dest_process_zip_test/dir2.zip",
+            "zip archiving complete: test_dest_process_zip_test/dir3.zip",
         ];
 
         message.sort();

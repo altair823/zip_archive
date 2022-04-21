@@ -9,6 +9,7 @@
 //! | ------ | ------ |
 //! | [xz](https://en.wikipedia.org/wiki/XZ) | Using [xz2] crate. |
 //! | [7z](https://www.7-zip.org) | See [Requirements](#requirements-for-7z-format) section. |
+//! | [zip] | Using [zip] crate. |
 //!
 //!
 //! # Examples
@@ -50,23 +51,6 @@
 //! };
 //! ```
 //!
-//! - Compress subdirectories with a depth of 1.
-//! ```
-//! use std::path::PathBuf;
-//! use zip_archive::{Archiver, get_dir_list};
-//!
-//! let origin = PathBuf::from("./origin");  // Change to the wanted directory.
-//! let dest = PathBuf::from("./dest");
-//!
-//! let mut archiver = Archiver::new();
-//! archiver.push_from_iter(get_dir_list(origin).unwrap().iter());
-//! archiver.set_destination(dest);
-//! match archiver.archive(){
-//!     Ok(_) => (),
-//!     Err(e) => println!("Cannot archive the directory! {}", e),
-//! };
-//! ```
-//!
 //! - Compress directory with .xz format.
 //! ```
 //! use std::path::PathBuf;
@@ -79,7 +63,7 @@
 //! let mut archiver = Archiver::new();
 //! archiver.push(origin);
 //! archiver.set_destination(dest);
-//! archiver.set_format(Format::Cxz); // == `archiver.set_format_str("xz");`
+//! archiver.set_format(Format::xz); // == `archiver.set_format_str("xz");`
 //! match archiver.archive(){
 //!     Ok(_) => (),
 //!     Err(e) => println!("Cannot archive the directory! {}", e),
@@ -139,7 +123,7 @@ impl Archiver {
             thread_count: 1,
             sender: None,
             queue: None,
-            format: Format::Cxz,
+            format: Format::xz,
         }
     }
 
@@ -252,12 +236,12 @@ impl Archiver {
                 Some(ref s) => {
                     let new_sender = s.clone();
                     handle = thread::spawn(move || {
-                        get_compressor(format)(arc_queue, &arc_dest, Some(new_sender));
+                        get_compressor(format)(arc_queue, arc_dest, Some(new_sender));
                     });
                 }
                 None => {
                     handle = thread::spawn(move || {
-                        get_compressor(format)(arc_queue, &arc_dest, None);
+                        get_compressor(format)(arc_queue, arc_dest, None);
                     });
                 }
             }
@@ -476,7 +460,7 @@ mod tests {
         let mut archiver = Archiver::new();
         archiver.push_from_iter(get_dir_list(&origin).unwrap().iter());
         archiver.set_destination(&dest);
-        archiver.set_format(Format::Cxz);
+        archiver.set_format(Format::xz);
         archiver.archive().unwrap();
 
         assert!(dest.join("dir1.tar.xz").is_file());

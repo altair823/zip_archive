@@ -20,19 +20,19 @@ fn assert_receiver<T: AsRef<Path>>(dest: T, receiver: Receiver<String>, format: 
             "{} archiving complete: {}/dir1{}",
             format.to_string(),
             &dest.as_ref().to_str().unwrap(),
-            format.extension() 
+            format.extension()
         ),
         format!(
             "{} archiving complete: {}/dir2{}",
             format.to_string(),
             &dest.as_ref().to_str().unwrap(),
-            format.extension() 
+            format.extension()
         ),
         format!(
             "{} archiving complete: {}/dir3{}",
             format.to_string(),
             &dest.as_ref().to_str().unwrap(),
-            format.extension() 
+            format.extension()
         ),
         "Archiving Complete!".to_string(),
     ];
@@ -44,11 +44,19 @@ fn assert_receiver<T: AsRef<Path>>(dest: T, receiver: Receiver<String>, format: 
 }
 
 fn assert_format<T: AsRef<Path>>(dest: T, format: Format) {
-    assert!(dest.as_ref().join(format!("dir1{}", format.extension())).is_file());
-    assert!(dest.as_ref().join(format!("dir2{}", format.extension())).is_file());
-    assert!(dest.as_ref().join(format!("dir3{}", format.extension())).is_file());
+    assert!(dest
+        .as_ref()
+        .join(format!("dir1{}", format.extension()))
+        .is_file());
+    assert!(dest
+        .as_ref()
+        .join(format!("dir2{}", format.extension()))
+        .is_file());
+    assert!(dest
+        .as_ref()
+        .join(format!("dir3{}", format.extension()))
+        .is_file());
 }
-
 
 #[named]
 fn comp_test(format: Format) {
@@ -72,6 +80,7 @@ fn comp_test(format: Format) {
 
 #[test]
 fn comp_test_all() {
-    comp_test(Format::C7z);
-    comp_test(Format::Cxz);
+    comp_test(Format::_7z);
+    comp_test(Format::xz);
+    comp_test(Format::zip);
 }

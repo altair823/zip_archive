@@ -1,5 +1,4 @@
 use std::env::consts::OS;
-use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -90,17 +89,50 @@ pub fn get_dir_list_with_depth<O: AsRef<Path>>(root: O, depth: u32) -> io::Resul
     return Ok(result);
 }
 
-pub fn get_7z_executable_path() -> Result<PathBuf, Box<dyn Error>> {
+/// Find all files in the root directory in recursive way.
+/// The hidden files are also include, except the .DS_Store files in Mac.
+pub fn get_file_list<O: AsRef<Path>>(root: O) -> io::Result<Vec<PathBuf>> {
+    let mut file_list: Vec<PathBuf> = Vec::new();
+    let mut file_queue: Vec<PathBuf> = root
+        .as_ref()
+        .read_dir()?
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    let mut i = 0;
+    loop {
+        if i >= file_queue.len() {
+            break;
+        }
+        if file_queue[i].is_dir() {
+            for component in file_queue[i].read_dir()? {
+                file_queue.push(component.unwrap().path());
+            }
+        } else if file_queue[i]
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .ne(".DS_Store")
+        {
+            file_list.push(file_queue[i].to_path_buf());
+        }
+        i += 1;
+    }
+
+    Ok(file_list)
+}
+
+pub fn get_7z_executable_path() -> Result<PathBuf, io::Error> {
     match OS {
         "macos" => Ok(PathBuf::from("./7zz")),
         "windows" => Ok(PathBuf::from("7z.exe")),
         "linux" => Ok(PathBuf::from("./7zzs")),
         e => {
             println!("Doesn't support {} currently!", e);
-            return Err(Box::new(io::Error::new(
+            return Err(io::Error::new(
                 ErrorKind::NotFound,
                 "Cannot find the 7z executable!",
-            )));
+            ));
         }
     }
 }
@@ -141,5 +173,25 @@ mod tests {
         assert!(get_dir_list_with_depth("dir_test", 4).unwrap().is_empty());
 
         fs::remove_dir_all("dir_test").unwrap();
+    }
+
+    #[test]
+    fn get_file_list_test() {
+        let file_list = get_file_list("original_images").unwrap();
+        let mut file_list: Vec<&str> = file_list.iter().map(|p| p.to_str().unwrap()).collect();
+        file_list.sort();
+
+        let mut expected_file_list = vec![
+            "original_images/dir3/file1.png",
+            "original_images/dir3/file2.jpg",
+            "original_images/dir1/file3.png",
+            "original_images/dir3/file4.jpg",
+            "original_images/dir1/file5.webp",
+            "original_images/dir2/file6.webp",
+            "original_images/dir3/file7.txt",
+        ];
+        expected_file_list.sort();
+
+        assert_eq!(file_list, expected_file_list);
     }
 }
