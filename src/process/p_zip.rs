@@ -8,7 +8,6 @@ use crate::{
 
 use super::{Message, Process};
 
-#[derive()]
 pub struct ProcessZip {
     message: Message,
 }
