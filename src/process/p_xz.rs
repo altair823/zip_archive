@@ -1,5 +1,6 @@
 use std::{
     fs,
+    path::Path,
     sync::{mpsc::Sender, Arc},
 };
 
@@ -8,18 +9,25 @@ use crossbeam_queue::SegQueue;
 use crate::{
     core::{c_tar::CompressTar, c_xz::CompressXz, Compress},
     extra::try_send_message,
+    Format,
 };
 
-use super::Process;
+use super::{Message, Process};
 
-pub struct ProcessXz;
+pub struct ProcessXz {
+    message: Message,
+}
 
-impl Process for ProcessXz {
-    fn process<T: AsRef<std::path::Path>, O: AsRef<std::path::Path>>(
-        queue: Arc<SegQueue<T>>,
-        dest: Arc<O>,
-        sender: Option<Sender<String>>,
-    ) {
+impl Default for ProcessXz {
+    fn default() -> Self {
+        Self {
+            message: Message::new(Format::Xz),
+        }
+    }
+}
+
+impl<T: AsRef<Path>, O: AsRef<Path>> Process<T, O> for ProcessXz {
+    fn process(&self, queue: Arc<SegQueue<T>>, dest: Arc<O>, sender: Option<Sender<String>>) {
         let dest = &*dest;
         while !queue.is_empty() {
             let dir = match queue.pop() {
@@ -39,12 +47,9 @@ impl Process for ProcessXz {
                         Ok(_) => (),
                         Err(_) => try_send_message(&sender, format!("Cannot delete tarball!")),
                     };
-                    try_send_message(
-                        &sender,
-                        format!("xz archiving complete: {}", p.to_str().unwrap()),
-                    );
+                    try_send_message(&sender, self.message.completion_message(p));
                 }
-                Err(e) => try_send_message(&sender, format!("xz archiving error occured!: {}", e)),
+                Err(e) => try_send_message(&sender, self.message.error_message(e)),
             };
         }
     }
@@ -58,7 +63,7 @@ mod tests {
 
     use crate::{
         core::test_util::{cleanup, setup, Dir},
-        get_dir_list,
+        get_dir_list, process::message_test,
     };
 
     use super::*;
@@ -74,26 +79,18 @@ mod tests {
         }
         let (tx, tr) = mpsc::channel();
 
-        let dest = Arc::new(dest);
+        let arc_dest = Arc::new(dest.clone());
         thread::spawn(move || {
-            ProcessXz::process(Arc::new(queue), dest, Some(tx));
+            let processor = ProcessXz::default();
+            processor.process(Arc::new(queue), arc_dest, Some(tx));
         });
 
         let mut message = vec![];
         for re in tr {
             message.push(re);
         }
-        println!("{:?}", message);
-        let mut expected_message = vec![
-            "xz archiving complete: test_dest_process_xz_test/dir2.tar.xz",
-            "xz archiving complete: test_dest_process_xz_test/dir3.tar.xz",
-            "xz archiving complete: test_dest_process_xz_test/dir1.tar.xz",
-        ];
-
-        message.sort();
-        expected_message.sort();
-
-        assert_eq!(message, expected_message);
+        
+        message_test::assert_messages(dest, Format::Xz, message);
         cleanup(function_name!());
     }
 }

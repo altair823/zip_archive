@@ -46,7 +46,7 @@ impl Compress for Compress7z {
             Err(e) => {
                 return Err(io::Error::new(
                     io::ErrorKind::BrokenPipe,
-                    "Cannot execute subprocess!",
+                    format!("Cannot execute subprocess!: {}", e),
                 ))
             }
         };

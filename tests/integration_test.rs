@@ -81,6 +81,6 @@ fn comp_test(format: Format) {
 #[test]
 fn comp_test_all() {
     comp_test(Format::_7z);
-    comp_test(Format::xz);
-    comp_test(Format::zip);
+    comp_test(Format::Xz);
+    comp_test(Format::Zip);
 }

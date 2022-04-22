@@ -1,21 +1,28 @@
 use crossbeam_queue::SegQueue;
+use std::path::Path;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-use crate::core::c_7z::Compress7z;
 use crate::core::Compress;
 use crate::extra::try_send_message;
+use crate::{core::c_7z::Compress7z, Format};
 
-use super::Process;
+use super::{Message, Process};
 
-pub struct Process7z;
+pub struct Process7z {
+    message: Message,
+}
 
-impl Process for Process7z {
-    fn process<T: AsRef<std::path::Path>, O: AsRef<std::path::Path>>(
-        queue: Arc<SegQueue<T>>,
-        dest: Arc<O>,
-        sender: Option<Sender<String>>,
-    ) {
+impl Default for Process7z {
+    fn default() -> Self {
+        Self {
+            message: Message::new(Format::_7z),
+        }
+    }
+}
+
+impl<T: AsRef<Path>, O: AsRef<Path>> Process<T, O> for Process7z {
+    fn process(&self, queue: Arc<SegQueue<T>>, dest: Arc<O>, sender: Option<Sender<String>>) {
         let dest = &*dest;
         while !queue.is_empty() {
             let dir = match queue.pop() {
@@ -23,11 +30,8 @@ impl Process for Process7z {
                 Some(d) => d,
             };
             match Compress7z::compress(&dir, &dest) {
-                Ok(p) => try_send_message(
-                    &sender,
-                    format!("7z archiving complete: {}", p.to_str().unwrap()),
-                ),
-                Err(e) => try_send_message(&sender, format!("7z archiving error occured!: {}", e)),
+                Ok(p) => try_send_message(&sender, self.message.completion_message(p)),
+                Err(e) => try_send_message(&sender, self.message.error_message(e)),
             };
         }
     }
@@ -39,6 +43,7 @@ mod tests {
     use super::*;
     use crate::core::test_util::{cleanup, setup, Dir};
     use crate::extra::get_dir_list;
+    use crate::process::message_test;
     use crossbeam_queue::SegQueue;
     use function_name::named;
     use std::sync::mpsc;
@@ -55,9 +60,10 @@ mod tests {
         }
         let (tx, tr) = mpsc::channel();
 
-        let dest = Arc::new(dest);
+        let arc_dest = Arc::new(dest.clone());
         thread::spawn(move || {
-            Process7z::process(Arc::new(queue), dest, Some(tx));
+            let processor = Process7z::default();
+            processor.process(Arc::new(queue), arc_dest, Some(tx));
         });
 
         let mut message = vec![];
@@ -65,16 +71,7 @@ mod tests {
             message.push(re);
         }
 
-        let mut expected_message = vec![
-            "7z archiving complete: test_dest_process_7z_test/dir2.7z",
-            "7z archiving complete: test_dest_process_7z_test/dir3.7z",
-            "7z archiving complete: test_dest_process_7z_test/dir1.7z",
-        ];
-
-        message.sort();
-        expected_message.sort();
-
-        assert_eq!(message, expected_message);
+        message_test::assert_messages(dest, Format::_7z, message);
         cleanup(function_name!());
     }
 }
