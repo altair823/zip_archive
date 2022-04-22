@@ -10,13 +10,25 @@ mod p_7z;
 mod p_xz;
 mod p_zip;
 
+/// The enum of formats that currently supported. 
 pub enum Format {
-    _7z,
+    /// 7z format. 
+    /// Best compression level, longest time, need requirments. 
+    /// If you want to use it, see requirments tab in README.
+    _7z, 
+
+    /// xz format. 
+    /// Good compression level. 
     Xz,
+
+    // Deflate format which has .zip extension. 
+    /// shortest time.
     Zip,
 }
 
 impl Format {
+
+    /// Get extension of [`Format`].
     pub fn extension(&self) -> String {
         match self {
             Format::_7z => String::from(".7z"),
@@ -25,6 +37,7 @@ impl Format {
         }
     }
 
+    /// Create a [`Format`] from the str. 
     pub fn from(format_str: &str) -> Self {
         match format_str {
             "7z" => Format::_7z,

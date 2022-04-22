@@ -144,10 +144,23 @@ impl Archiver {
         self.sender = Some(sender);
     }
 
+    /// Set the format of the file to be compressed with [Format].
+    /// For more information, see [Format].
+    /// ```
+    /// use zip_archive::{Archiver, Format};
+    /// let mut archiver = Archiver::new();
+    /// archiver.set_format(Format::_7z);
+    /// ```
     pub fn set_format(&mut self, comp_format: Format) {
         self.format = comp_format;
     }
 
+    /// Set the format of the file to be compressed with a string. 
+    /// ```
+    /// use zip_archive::Archiver;
+    /// let mut archiver = Archiver::new();
+    /// archiver.set_format_str("7z");
+    /// ```
     pub fn set_format_str<T: ToString>(&mut self, comp_format_str: T) {
         self.format = Format::from(&comp_format_str.to_string());
     }
