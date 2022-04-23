@@ -4,7 +4,8 @@
 /dest/
 /origin/
 /*test*/
-
 Cargo.lock
 .DS_Store
 7zz
+
+!/tests/
