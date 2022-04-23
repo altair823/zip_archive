@@ -12,6 +12,7 @@ mod p_zip;
 
 /// The enum of formats that currently supported.  
 /// Using this enum, you can set the format of archiving method. 
+#[derive(PartialEq)]
 pub enum Format {
 
     /// .7z format. 
