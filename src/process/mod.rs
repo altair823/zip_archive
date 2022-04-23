@@ -10,25 +10,29 @@ mod p_7z;
 mod p_xz;
 mod p_zip;
 
-/// The enum of formats that currently supported. 
+/// The enum of formats that currently supported.  
+/// Using this enum, you can set the format of archiving method. 
 pub enum Format {
-    /// 7z format. 
-    /// Best compression level, longest time, need requirments. 
-    /// If you want to use it, see requirments tab in README.
+
+    /// .7z format. 
+    /// Best compression level, longest time, need requirments.  
+    /// If you want to use it, see requirments tab in README.  
     _7z, 
 
-    /// xz format. 
-    /// Good compression level. 
+
+    /// .xz format.  
+    /// Good compression level.  
     Xz,
 
-    // Deflate format which has .zip extension. 
-    /// shortest time.
+
+    /// Deflate archive which has .zip extension.  
+    /// shortest time.  
     Zip,
 }
 
 impl Format {
 
-    /// Get extension of [`Format`].
+    /// Get extension string of [`Format`].
     pub fn extension(&self) -> String {
         match self {
             Format::_7z => String::from(".7z"),
