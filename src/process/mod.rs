@@ -72,6 +72,12 @@ impl ToString for Format {
     }
 }
 
+impl Default for Format {
+    fn default() -> Self {
+        Format::Zip
+    }
+}
+
 pub trait Process<T: AsRef<Path>, O: AsRef<Path>> {
     fn process(&self, queue: Arc<SegQueue<T>>, dest: Arc<O>, sender: Option<Sender<String>>);
 }
